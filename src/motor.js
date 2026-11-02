@@ -1,4 +1,3 @@
-// Motor de eventos: genera los riegos del día, dispara avisos y evalúa alertas de humedad.
 const S = require('./store');
 const sensores = require('./sensores');
 
@@ -18,7 +17,6 @@ function generarRiegosDeHoy(ahora) {
     if (!aplicaEn(cal, fecha, dia)) continue;
     const prog = progDe(fecha, cal.hora);
     if (S.db.riegos.some(r => r.id_calendario === cal.id && r.prog === prog)) continue;
-    // Si la hora ya pasó hace más de 2 min no se crea (evita avisos retroactivos al crear o reiniciar)
     if (ahora - aDate(prog) > 2 * 60 * 1000) continue;
     S.db.riegos.push({
       id: S.nextId('riego'), id_calendario: cal.id, nave: cal.nave, nombre: cal.nombre, prog,
@@ -68,7 +66,6 @@ function evaluarAlertas(lecturas, ahora) {
     for (const [tipo, activa, sev, titulo, msg] of condiciones) {
       const abierta = S.db.alertas.find(a => a.nave === l.nave && a.tipo === tipo && !a.resuelta);
       if (activa && !abierta) {
-        // Si la misma alerta se cerró hace poco (rebote del sensor) se registra pero no se vuelve a notificar
         const reciente = S.db.alertas.some(a => a.nave === l.nave && a.tipo === tipo && ahora - new Date(a.fecha) < COOLDOWN_ALERTA_MS);
         S.db.alertas.push({
           id: S.nextId('alerta'), nave: l.nave, tipo, severidad: sev, mensaje: msg,

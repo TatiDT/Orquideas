@@ -1,5 +1,3 @@
-// Fuente de lecturas. Si SENSOR_URL está definida se consulta ese endpoint externo;
-// si no, se usa un simulador local para poder trabajar mientras no exista la URL.
 const { NAVES } = require('./store');
 
 const SENSOR_URL = process.env.SENSOR_URL || '';
@@ -26,8 +24,6 @@ function simular() {
   });
 }
 
-// Acepta [] o { naves|data|lecturas|sensores: [] }; cada ítem puede traer nombres de campo distintos.
-// Ajustar aquí cuando se conozca el formato real del endpoint externo.
 function normalizar(payload) {
   const lista = Array.isArray(payload) ? payload
     : payload.naves || payload.data || payload.lecturas || payload.sensores || [];
@@ -61,7 +57,6 @@ async function leer() {
       })),
     };
   } catch (e) {
-    // Se conservan las últimas lecturas conocidas y se marca el error
     ultimo = { ...ultimo, error: e.message };
   }
   return ultimo;

@@ -1,4 +1,4 @@
-try { process.loadEnvFile(); } catch { /* .env opcional */ }
+try { process.loadEnvFile(); } catch { }
 const express = require('express');
 const path = require('path');
 const S = require('./src/store');
@@ -12,7 +12,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 const naveDe = c => S.NAVES.find(n => n.codigo === c);
 const ABIERTO = ['PENDIENTE', 'NOTIFICADO'];
 
-// ---------- Estado en vivo ----------
 app.get('/api/estado', (req, res) => {
   const s = sensores.ultimo();
   const P = S.PARAMETROS;
@@ -36,7 +35,6 @@ app.get('/api/estado', (req, res) => {
   });
 });
 
-// ---------- Calendarios de riego ----------
 function validarCalendario(b) {
   const e = [];
   if (!b.nombre || !String(b.nombre).trim()) e.push('Nombre requerido');
@@ -93,7 +91,6 @@ app.put('/api/calendarios/:id', (req, res) => {
   const errores = validarCalendario(datos);
   if (errores.length) return res.status(400).json({ errores });
   Object.assign(cal, limpiar(datos));
-  // Se descartan los riegos abiertos de este calendario para regenerarlos con los datos nuevos
   S.db.riegos = S.db.riegos.filter(r => !(r.id_calendario === cal.id && r.origen === 'CALENDARIO' && ABIERTO.includes(r.estado)));
   S.guardar();
   motor.generarRiegosDeHoy(new Date());
@@ -110,7 +107,6 @@ app.delete('/api/calendarios/:id', (req, res) => {
   res.sendStatus(204);
 });
 
-// Crea un riego de prueba que vence en ~1 minuto para validar avisos y notificaciones
 app.post('/api/calendarios/:id/prueba', (req, res) => {
   const cal = S.db.calendarios.find(c => c.id === +req.params.id);
   if (!cal) return res.sendStatus(404);
@@ -126,7 +122,6 @@ app.post('/api/calendarios/:id/prueba', (req, res) => {
   res.status(201).json({ prog });
 });
 
-// ---------- Riegos ----------
 app.get('/api/riegos', (req, res) => {
   res.json([...S.db.riegos].sort((a, b) => b.prog.localeCompare(a.prog)).slice(0, 60));
 });
@@ -143,7 +138,6 @@ const cerrar = estado => (req, res) => {
 app.post('/api/riegos/:id/realizar', cerrar('REALIZADO'));
 app.post('/api/riegos/:id/omitir', cerrar('OMITIDO'));
 
-// ---------- Notificaciones ----------
 app.get('/api/notificaciones', (req, res) => res.json([...S.db.notificaciones].reverse().slice(0, 50)));
 
 app.post('/api/notificaciones/leer-todas', (req, res) => {
@@ -158,7 +152,6 @@ app.post('/api/notificaciones/:id/leer', (req, res) => {
   res.sendStatus(204);
 });
 
-// Server-Sent Events: empuja cada notificación nueva al navegador
 app.get('/api/eventos', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.write('retry: 3000\n\n');
@@ -168,7 +161,6 @@ app.get('/api/eventos', (req, res) => {
   req.on('close', () => { clearInterval(ping); S.bus.off('notificacion', enviar); });
 });
 
-// ---------- Historial / configuración ----------
 app.get('/api/config', (req, res) => res.json(S.db.config));
 
 app.put('/api/config', (req, res) => {

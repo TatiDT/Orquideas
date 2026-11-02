@@ -9,7 +9,6 @@ const pad = n => String(n).padStart(2, '0');
 const fechaLocal = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const hoy = () => fechaLocal(new Date());
 
-// Naves y parámetros óptimos (reflejan nave / cultivo / parametro_optimo de sql.sql)
 const NAVES = [
   { codigo: 'A', orden: 1, nombre: 'Nave A', especies: 'Phalaenopsis (Orquídea Mariposa)', plantas: 1420 },
   { codigo: 'B', orden: 2, nombre: 'Nave B', especies: 'Cattleya Trianae & Dendrobium Nobile', plantas: 860 },
