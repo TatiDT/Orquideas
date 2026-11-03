@@ -94,7 +94,7 @@
       `<div class="gauge"><div class="gauge-head"><span>Punto de Rocío</span></div>
         <div class="grande">${num(sel.rocio)} <small>°C</small></div><p class="muted">Temperatura a la que condensa el vapor. Mantener por debajo de la temperatura ambiente para evitar hongos.</p></div>`;
 
-    $('#foot-fuente').textContent = `Fuente: ${estado.fuente === 'simulador' ? 'simulador local' : 'URL externa'} · actualizado ${estado.actualizado ? new Date(estado.actualizado).toLocaleTimeString('es-CL') : '--'}`;
+    $('#foot-fuente').textContent = `Fuente: ${estado.fuente === 'externo' ? 'URL externa' : 'sin sensores (datos en 0)'} · actualizado ${estado.actualizado ? new Date(estado.actualizado).toLocaleTimeString('es-CL') : '--'}`;
   }
   $('#naves').addEventListener('click', e => {
     const b = e.target.closest('[data-nave]');

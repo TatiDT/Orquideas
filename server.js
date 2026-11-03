@@ -179,6 +179,6 @@ app.get('/api/historial', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`OrquiClima en http://localhost:${PORT}  ·  sensores: ${sensores.SENSOR_URL || 'simulador local'}`);
+  console.log(`OrquiClima en http://localhost:${PORT}  ·  sensores: ${sensores.SENSOR_URL || 'sin sensores (datos en 0)'}`);
   motor.iniciar();
 });

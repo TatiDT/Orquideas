@@ -98,7 +98,8 @@ async function ciclo() {
   generarRiegosDeHoy(ahora);
   avisarRiegos(ahora);
   const r = await sensores.leer();
-  if (!r.error && r.lecturas.length) { evaluarAlertas(r.lecturas, ahora); registrarHistorial(r.lecturas, ahora); }
+  // Sin sensores reales (todo en 0) no se generan alertas ni historial.
+  if (!r.error && r.fuente === 'externo' && r.lecturas.length) { evaluarAlertas(r.lecturas, ahora); registrarHistorial(r.lecturas, ahora); }
 }
 
 function iniciar() {

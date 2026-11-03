@@ -3,25 +3,21 @@ const { NAVES } = require('./store');
 const SENSOR_URL = process.env.SENSOR_URL || '';
 const base = { A: [86.4, 21.0], B: [67.9, 19.0], C: [85.5, 21.0] };
 const estado = {};
-let ultimo = { fuente: SENSOR_URL ? 'externo' : 'simulador', error: null, actualizado: null, lecturas: [] };
+let ultimo = { fuente: SENSOR_URL ? 'externo' : 'sin_datos', error: null, actualizado: null, lecturas: [] };
 
 const r1 = n => Math.round(n * 10) / 10;
 const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 
 const dpv = (t, hr) => 0.6108 * Math.exp((17.27 * t) / (t + 237.3)) * (1 - hr / 100);
 function rocio(t, hr) {
+  if (!(hr > 0)) return 0;
   const g = Math.log(hr / 100) + (17.27 * t) / (t + 237.3);
   return (237.3 * g) / (17.27 - g);
 }
 
-function simular() {
-  return NAVES.map(n => {
-    const [hr0, t0] = base[n.codigo];
-    const s = estado[n.codigo] || (estado[n.codigo] = { hr: hr0, t: t0 });
-    s.hr = clamp(s.hr + (Math.random() - 0.5) * 1.2 + (hr0 - s.hr) * 0.05, 40, 99);
-    s.t = clamp(s.t + (Math.random() - 0.5) * 0.4 + (t0 - s.t) * 0.05, 10, 35);
-    return { nave: n.codigo, humedad: r1(s.hr), temperatura: r1(s.t) };
-  });
+// Sin sensores conectados: sin simulación, todas las lecturas en 0.
+function sinDatos() {
+  return NAVES.map(n => ({ nave: n.codigo, humedad: 0, temperatura: 0 }));
 }
 
 function normalizar(payload) {
@@ -48,10 +44,10 @@ async function leer() {
       crudas = normalizar(await res.json());
       if (!crudas.length) throw new Error('Respuesta sin lecturas reconocibles');
     } else {
-      crudas = simular();
+      crudas = sinDatos();
     }
     ultimo = {
-      fuente: SENSOR_URL ? 'externo' : 'simulador', error: null, actualizado: new Date().toISOString(),
+      fuente: SENSOR_URL ? 'externo' : 'sin_datos', error: null, actualizado: new Date().toISOString(),
       lecturas: crudas.map(l => ({
         ...l, dpv: Math.round(dpv(l.temperatura, l.humedad) * 100) / 100, rocio: r1(rocio(l.temperatura, l.humedad)),
       })),
