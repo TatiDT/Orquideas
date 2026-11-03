@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "OrquiClima PRO - monitoreo y riego de orquídeas (prototipo etapa 1)",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "express": "^4.21.2" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "nodemailer": "^10.3.1"
+  }
 }

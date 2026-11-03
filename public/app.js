@@ -64,8 +64,6 @@
     av.hidden = !estado.error;
     if (estado.error) av.textContent = `No se pudo leer la fuente de sensores (${estado.error}). Se muestran las últimas lecturas conocidas.`;
 
-    $('#alertas-activas').innerHTML = estado.alertas.map(a =>
-      `<div class="alerta-item ${esc(a.severidad)}"><b>Nave ${esc(a.nave)}</b> ${esc(a.mensaje)}</div>`).join('');
 
     $('#naves').innerHTML = estado.naves.map(n => {
       if (n.sinDatos) return `<div class="nave"><span class="tag">NAVE ${esc(n.codigo)}</span><h3>${esc(n.especies)}</h3><p class="muted">Sin datos del sensor</p></div>`;
@@ -102,7 +100,7 @@
   });
 
   async function cargarEstado() {
-    try { estado = await api('/api/estado'); renderVivo(); } catch { }
+    try { estado = await api('/api/estado'); renderVivo(); if (vista === 'calendario') { renderCalendarios(); renderRiegos(); } } catch { }
   }
 
   let calendarios = [];
@@ -116,42 +114,192 @@
     const n = riegos.filter(r => abierto(r) && r.prog.slice(0, 10) === hoyStr()).length;
     $('#badge-riegos').hidden = !n;
     $('#badge-riegos').textContent = n;
-    if (vista === 'calendario') renderRiegos();
+    if (vista === 'calendario') { renderCalendarios(); renderRiegos(); }
   }
   const hoyStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
+  const fechaCorta = prog => `${prog.slice(8, 10)}/${prog.slice(5, 7)}/${prog.slice(0, 4)}`;
+  const ICO = {
+    reloj: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    alerta: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>',
+    chispa: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3l1.8 4.7L15.5 9.5l-4.7 1.8L9 16l-1.8-4.7L2.5 9.5l4.7-1.8zM18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/></svg>',
+    volver: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
+    basura: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  };
+
+  function sensorRiego(nave) {
+    const n = estado && estado.naves.find(x => x.codigo === nave);
+    if (!n || n.sinDatos || estado.fuente !== 'externo') return '<b>Sensor Nave:</b> sin datos del sensor.';
+    const cabecera = `<b>Sensor Nave: HR ${num(n.hr)}% (${num(n.temp)}°C).</b>`;
+    if (!n.hrOk && n.hr < estado.parametros.hr_meta) return `${cabecera} <span class="bad">Humedad perimetral baja.</span> Se recomienda nebulizar hojas además del riego.`;
+    if (!n.hrOk) return `${cabecera} <span class="bad">Humedad alta.</span> Revisar ventilación antes de regar.`;
+    return `${cabecera} <span class="ok">Humedad óptima para orquídeas.</span>`;
+  }
+
+  const CONSEJOS = [
+    'Con la humedad actual cercana al 80%, el sustrato drena despacio. Drenar completamente las macetas para prevenir pudrición de corona bacteriana.',
+    'Riega temprano en la mañana para que las hojas y el cuello de la planta se sequen antes del anochecer.',
+    'Usa agua desmineralizada o de lluvia: las sales acumuladas del agua dura queman las raíces y manchan las hojas.',
+    'Las raíces verde esmeralda están hidratadas; si se ven gris plateado es el momento óptimo de regar.',
+    'No dejes agua acumulada en el centro de la planta: inclina ligeramente la maceta o seca con un paño para evitar hongos.',
+    'Si el sustrato de corteza aún está húmedo al tacto, espera un día más: el exceso de riego pudre las raíces antes que la sequía.',
+    'Riega con agua a temperatura ambiente; el agua fría estresa las raíces, sobre todo en Phalaenopsis.',
+    'Una vez al mes, riega abundante con agua sola para lavar los restos de fertilizante del sustrato.',
+    'En Vandas y epífitas de raíz aérea, la nebulización fina hasta que las raíces se pongan verde oscuro reemplaza al riego de sustrato.',
+    'Asegura ventilación después de regar: la humedad alta sin circulación de aire favorece hongos y bacterias.',
+  ];
+
+  function renderAvisoRiego() {
+    const vencidos = riegos.filter(r => abierto(r) && (estadoRiego(r) === 'ATRASADO' || r.hora_notificada));
+    const el = $('#aviso-riego');
+    el.hidden = !vencidos.length;
+    if (!vencidos.length) return;
+    const n = vencidos.length;
+    const semilla = vencidos.reduce((a, r) => a + r.id, 0) + new Date().getHours();
+    el.innerHTML = `<div class="ar-ico">🔔</div>
+      <div class="ar-cuerpo">
+        <h3>¡Momento de Regar Orquídeas! (${n} ${n === 1 ? 'lote listo' : 'lotes listos'} para hidratación)</h3>
+        <p>${n === 1 ? 'La siguiente orquídea ha completado su periodo' : 'Las siguientes orquídeas han completado su periodo'} de secado. Compruebe que el velamen radicular esté en tono gris plateado antes de iniciar el riego.</p>
+        <p class="ar-consejo">${ICO.chispa} Consejo botánico: ${esc(CONSEJOS[semilla % CONSEJOS.length])}</p>
+      </div>`;
+  }
+
   function renderRiegos() {
+    renderAvisoRiego();
+    renderProgramar();
     $('#riegos').innerHTML = riegos.length ? riegos.map(r => {
       const st = estadoRiego(r);
       return `<div class="riego">
         <div class="hora">${esc(r.prog.slice(11))}<small>${fechaProg(r.prog)}</small></div>
         <div class="info"><b>${esc(r.nombre)}</b><span class="muted">Nave ${esc(r.nave)} · ${r.duracion_min} min${r.volumen_litros ? ` · ${r.volumen_litros} L` : ''}</span></div>
         <span class="st ${st}">${st === 'ATRASADO' ? 'Atrasado' : st.charAt(0) + st.slice(1).toLowerCase()}</span>
-        <div class="btns">${abierto(r) ? `<button class="btn sm primary" data-riego="${r.id}" data-acc="realizar">✓ Regado</button><button class="btn sm" data-riego="${r.id}" data-acc="omitir">Omitir</button>` : ''}</div>
+        <div class="btns">${abierto(r) ? `<button class="btn sm" data-riego="${r.id}" data-acc="omitir">Omitir</button>` : ''}<button class="btn sm danger" data-riego="${r.id}" data-acc="eliminar">Quitar</button></div>
       </div>`;
-    }).join('') : '<div class="vacio">Aún no hay riegos generados. Los riegos aparecen el día en que corresponden según cada calendario.</div>';
+    }).join('') : '<div class="vacio">Aún no hay riegos registrados. Aparecen el día en que corresponden según cada lote.</div>';
   }
   $('#riegos').addEventListener('click', async e => {
     const b = e.target.closest('[data-riego]');
     if (!b) return;
+    if (b.dataset.acc === 'eliminar' && !confirm('¿Quitar este riego del registro?')) return;
     b.disabled = true;
-    try { await api(`/api/riegos/${b.dataset.riego}/${b.dataset.acc}`, 'POST', {}); await cargarRiegos(); }
+    try {
+      if (b.dataset.acc === 'eliminar') await api(`/api/riegos/${b.dataset.riego}`, 'DELETE');
+      else await api(`/api/riegos/${b.dataset.riego}/${b.dataset.acc}`, 'POST', {});
+      await cargarRiegos();
+    }
     catch (err) { toast({ titulo: 'No se pudo actualizar', mensaje: err.message, severidad: 'CRITICA' }); b.disabled = false; }
   });
 
   function renderCalendarios() {
-    $('#calendarios').innerHTML = calendarios.length ? calendarios.map(c => `
-      <div class="cal ${c.activo ? '' : 'inactivo'}">
-        <div class="cal-top"><div><h3>${esc(c.nombre)}</h3><span class="muted">Nave ${esc(c.nave)}</span></div>
-          <label class="switch" title="Activar o pausar"><input type="checkbox" data-toggle="${c.id}" ${c.activo ? 'checked' : ''} aria-label="Activo"><span></span></label></div>
-        <div class="dias-mini">${DIAS.map(d => `<span class="${c.dias.includes(d) ? 'on' : ''}">${d}</span>`).join('')}</div>
-        <dl><dt>Hora</dt><dd class="mono">${esc(c.hora)}</dd>
-          <dt>Duración</dt><dd>${c.duracion_min} min${c.volumen_litros ? ` · ${c.volumen_litros} L` : ''}</dd>
-          <dt>Aviso</dt><dd>${c.minutos_aviso} min antes</dd>
-          <dt>Próximo</dt><dd>${c.activo && c.proximo ? `${fechaProg(c.proximo)} · ${esc(c.proximo.slice(11))}` : '—'}</dd></dl>
-        <div class="cal-btns"><button class="btn sm" data-edit="${c.id}">Editar</button><button class="btn sm" data-prueba="${c.id}" title="Genera un riego que vence en 1 minuto">Probar aviso</button><button class="btn sm danger" data-del="${c.id}">Eliminar</button></div>
-      </div>`).join('') : '<div class="vacio">No hay calendarios. Crea el primero con “Nuevo calendario”.</div>';
+    $('#calendarios').innerHTML = calendarios.length ? calendarios.map(c => {
+      const nave = estado && estado.naves.find(n => n.codigo === c.nave);
+      const abiertos = riegos.filter(r => r.id_calendario === c.id && abierto(r)).sort((a, b) => a.prog.localeCompare(b.prog));
+      const vencido = abiertos.find(r => estadoRiego(r) === 'ATRASADO' || r.hora_notificada);
+      const proximo = (abiertos[0] && abiertos[0].prog) || (c.activo && c.proximo) || null;
+      const ultimo = riegos.filter(r => r.id_calendario === c.id && r.estado === 'REALIZADO' && r.realizado_en).map(r => r.realizado_en).sort().pop();
+      const pill = !c.activo ? ['PAUSADO', 'Pausado'] : vencido ? ['ATRASADO', 'Momento de Riego'] : abiertos.length ? ['NOTIFICADO', 'Riego Programado'] : ['PENDIENTE', 'En Espera'];
+      const lote = c.lote || `LOTE-${c.nave}-${pad(c.id)}`;
+      const freq = `${c.dias.map(d => d.charAt(0) + d.slice(1).toLowerCase()).join(', ')} a las ${c.hora}`;
+      return `<article class="riego-card ${vencido ? 'abierto' : ''} ${c.activo ? '' : 'inactivo'}">
+        <div class="rc-top">
+          <span class="rc-lote mono">${esc(lote)}</span>
+          <span class="rc-pill ${pill[0]}">${vencido ? ICO.alerta : ''}${pill[1]}</span>
+          <label class="switch" title="Activar o pausar"><input type="checkbox" data-toggle="${c.id}" ${c.activo ? 'checked' : ''} aria-label="Activo"><span></span></label>
+          <button class="rc-del" data-del="${c.id}" title="Eliminar lote" aria-label="Eliminar lote">${ICO.basura}</button>
+        </div>
+        <h3>${esc(c.especie || c.nombre)}</h3>
+        <p class="muted">Nave ${esc(c.nave)}${nave ? ` - ${esc(nave.especies)}` : ''}</p>
+        <dl class="rc-datos">
+          <div><dt>Especie:</dt><dd>${esc(c.especie || c.nombre)}</dd></div>
+          <div><dt>Frecuencia:</dt><dd>${esc(freq)}</dd></div>
+          <div><dt>Método:</dt><dd>${esc(c.metodo || '—')}</dd></div>
+          <div><dt>Nutrición / Abono:</dt><dd>${esc(c.nutricion || '—')}</dd></div>
+          <div><dt>Volumen agua:</dt><dd class="mono vol">${c.volumen_litros ? `${c.volumen_litros} L` : '—'}</dd></div>
+          <div><dt>Duración / Aviso:</dt><dd>${c.duracion_min} min · ${c.minutos_aviso} min antes</dd></div>
+        </dl>
+        <div class="rc-prox">
+          <span>${ICO.reloj} Próximo riego: <b class="mono">${proximo ? `${fechaCorta(proximo)} ${esc(proximo.slice(11))}` : '—'}</b></span>
+          <span class="muted">Último: ${ultimo ? fechaCorta(ultimo) : '—'}</span>
+        </div>
+        <div class="rc-sensor">${ICO.chispa}<p>${sensorRiego(c.nave)}</p></div>
+        ${c.nota ? `<p class="rc-nota">"${esc(c.nota)}"</p>` : ''}
+        <div class="rc-btns">
+          <span class="rc-izq"><button class="btn sm" data-edit="${c.id}">Editar</button><button class="btn sm" data-prueba="${c.id}" title="Genera un riego que vence en 1 minuto">Probar aviso</button></span>
+          <button class="btn sm" data-posponer="${c.id}">${ICO.volver} Posponer 24h</button>
+          <button class="btn sm dark" data-registrar="${c.id}">${ICO.check} Registrar Riego</button>
+        </div>
+      </article>`;
+    }).join('') : '<div class="vacio">No hay lotes. Crea el primero con “Nuevo calendario”.</div>';
   }
+
+  const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const DIA_COD = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+  const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  let mesVista = new Date(); mesVista.setDate(1);
+  let diaSel = null;
+
+  const recurrentesDe = fecha => {
+    const cod = DIA_COD[new Date(fecha + 'T00:00:00').getDay()];
+    return calendarios.filter(c => c.activo && c.dias.includes(cod) && fecha >= c.fecha_inicio && (!c.fecha_fin || fecha <= c.fecha_fin));
+  };
+
+  function renderProgramar() {
+    const sel = $('#prog-lote');
+    const previo = sel.value;
+    sel.innerHTML = calendarios.map(c => `<option value="${c.id}">${esc(c.nombre)} · Nave ${esc(c.nave)}</option>`).join('');
+    if (previo && calendarios.some(c => c.id == previo)) sel.value = previo;
+    if (!$('#prog-hora').dataset.tocada && calendarios.length) { const c = calendarios.find(x => x.id == sel.value); if (c) $('#prog-hora').value = c.hora; }
+
+    const y = mesVista.getFullYear(), m = mesVista.getMonth();
+    $('#mes-titulo').textContent = `${MESES[m]} ${y}`;
+    const hoy = hoyStr();
+    const primero = (new Date(y, m, 1).getDay() + 6) % 7;
+    const dias = new Date(y, m + 1, 0).getDate();
+    const conRiego = new Set(riegos.filter(r => abierto(r)).map(r => r.prog.slice(0, 10)));
+    let html = DIAS.map(d => `<span class="mes-cab">${d.charAt(0) + d.slice(1).toLowerCase()}</span>`).join('');
+    for (let i = 0; i < primero; i++) html += '<span></span>';
+    for (let d = 1; d <= dias; d++) {
+      const f = iso(y, m, d);
+      const pasado = f < hoy;
+      const prog = conRiego.has(f), rec = !pasado && recurrentesDe(f).length > 0;
+      html += `<button class="mes-dia ${f === hoy ? 'hoy' : ''} ${f === diaSel ? 'sel' : ''}" data-dia="${f}" ${pasado ? 'disabled' : ''}>${d}<span class="pts">${prog ? '<i class="pt prog"></i>' : ''}${rec ? '<i class="pt rec"></i>' : ''}</span></button>`;
+    }
+    $('#mes-dias').innerHTML = html;
+
+    const fecha = $('#prog-fecha'), lista = $('#prog-lista');
+    $('#prog-btn').disabled = !diaSel || !calendarios.length;
+    if (!diaSel) { fecha.textContent = 'Selecciona un día'; lista.innerHTML = ''; return; }
+    fecha.textContent = `${fechaProg(diaSel + 'T00:00')} ${diaSel.slice(0, 4)}`;
+    const delDia = riegos.filter(r => r.prog.slice(0, 10) === diaSel && abierto(r)).sort((a, b) => a.prog.localeCompare(b.prog));
+    lista.innerHTML = delDia.map(r => `<div class="prog-item"><span class="mono">${esc(r.prog.slice(11))}</span><span>${esc(r.nombre)} · Nave ${esc(r.nave)}</span><button class="rc-del" data-quitar="${r.id}" title="Cancelar riego" aria-label="Cancelar riego">${ICO.basura}</button></div>`).join('')
+      + recurrentesDe(diaSel).map(c => `<div class="prog-item rec"><span class="mono">${esc(c.hora)}</span><span>${esc(c.nombre)} · Nave ${esc(c.nave)}</span><small>recurrente</small></div>`).join('');
+  }
+
+  $('#mes-prev').addEventListener('click', () => { mesVista.setMonth(mesVista.getMonth() - 1); renderProgramar(); });
+  $('#mes-next').addEventListener('click', () => { mesVista.setMonth(mesVista.getMonth() + 1); renderProgramar(); });
+  $('#mes-dias').addEventListener('click', e => {
+    const b = e.target.closest('[data-dia]');
+    if (b) { diaSel = b.dataset.dia; renderProgramar(); }
+  });
+  $('#prog-hora').addEventListener('input', e => { e.target.dataset.tocada = '1'; });
+  $('#prog-lote').addEventListener('change', () => {
+    const c = calendarios.find(x => x.id == $('#prog-lote').value);
+    if (c) { $('#prog-hora').value = c.hora; delete $('#prog-hora').dataset.tocada; }
+  });
+  $('#prog-btn').addEventListener('click', async () => {
+    const box = $('#prog-error');
+    box.hidden = true;
+    try {
+      const r = await api('/api/riegos/programar', 'POST', { id_calendario: $('#prog-lote').value, fecha: diaSel, hora: $('#prog-hora').value });
+      await cargarRiegos();
+    } catch (err) { box.hidden = false; box.innerHTML = (err.errores || [err.message]).map(esc).join('<br>'); }
+  });
+  $('#prog-lista').addEventListener('click', async e => {
+    const b = e.target.closest('[data-quitar]');
+    if (!b) return;
+    try { await api(`/api/riegos/${b.dataset.quitar}`, 'DELETE'); await cargarRiegos(); } catch (err) { toast({ titulo: 'Error', mensaje: err.message, severidad: 'CRITICA' }); }
+  });
 
   async function cargarCalendario() {
     try { calendarios = await api('/api/calendarios'); renderCalendarios(); await cargarRiegos(); }
@@ -159,8 +307,9 @@
   }
 
   $('#calendarios').addEventListener('click', async e => {
-    const t = e.target;
+    const t = e.target.closest('button') || e.target;
     try {
+      if (t.dataset.posponer || t.dataset.registrar) { const id = t.dataset.posponer || t.dataset.registrar; t.disabled = true; await api('/api/calendarios/' + id + (t.dataset.posponer ? '/posponer' : '/registrar'), 'POST', {}); toast({ titulo: t.dataset.posponer ? 'Riego pospuesto 24 h' : 'Riego registrado', mensaje: '' }); await cargarCalendario(); }
       if (t.dataset.edit) abrirModal(calendarios.find(c => c.id == t.dataset.edit));
       if (t.dataset.prueba) { const r = await api(`/api/calendarios/${t.dataset.prueba}/prueba`, 'POST'); toast({ titulo: 'Riego de prueba creado', mensaje: `Vence a las ${r.prog.slice(11)}. Recibirás el aviso a esa hora.` }); await cargarRiegos(); }
       if (t.dataset.del && confirm('¿Eliminar este calendario? Los riegos pendientes también se eliminarán.')) { await api(`/api/calendarios/${t.dataset.del}`, 'DELETE'); await cargarCalendario(); }
@@ -182,7 +331,7 @@
     $('#modal-titulo').textContent = c ? 'Editar calendario' : 'Nuevo calendario';
     $('#form-errores').hidden = true;
     const v = c || { nombre: '', nave: naveSel, hora: '08:00', dias: [], duracion_min: 10, volumen_litros: '', minutos_aviso: 15, fecha_inicio: hoyStr(), fecha_fin: '' };
-    for (const k of ['nombre', 'nave', 'hora', 'duracion_min', 'volumen_litros', 'minutos_aviso', 'fecha_inicio', 'fecha_fin']) form.elements[k].value = v[k] ?? '';
+    for (const k of ['nombre', 'lote', 'especie', 'metodo', 'nutricion', 'nota', 'nave', 'hora', 'duracion_min', 'volumen_litros', 'minutos_aviso', 'fecha_inicio', 'fecha_fin']) form.elements[k].value = v[k] ?? '';
     form.querySelectorAll('[name=dias]').forEach(i => { i.checked = v.dias.includes(i.value); });
     $('#modal').hidden = false;
     form.elements.nombre.focus();
@@ -197,7 +346,7 @@
     e.preventDefault();
     const f = form.elements;
     const body = {
-      nombre: f.nombre.value, nave: f.nave.value, hora: f.hora.value,
+      nombre: f.nombre.value, lote: f.lote.value, especie: f.especie.value, metodo: f.metodo.value, nutricion: f.nutricion.value, nota: f.nota.value, nave: f.nave.value, hora: f.hora.value,
       dias: [...form.querySelectorAll('[name=dias]:checked')].map(i => i.value),
       duracion_min: f.duracion_min.value, volumen_litros: f.volumen_litros.value,
       minutos_aviso: f.minutos_aviso.value, fecha_inicio: f.fecha_inicio.value, fecha_fin: f.fecha_fin.value,
@@ -245,20 +394,6 @@
   $('#guia').innerHTML = ESPECIES.map(([c, n, nave, t]) => `<div class="cal"><span class="tag">${nave.toUpperCase()}</span><h3>${esc(c)}</h3><p class="muted">${esc(n)}</p><p style="margin-top:8px;font-size:13px">${esc(t)}</p><dl><dt>Humedad</dt><dd>~80% HR</dd><dt>Temperatura</dt><dd>18°C – 24°C</dd></dl></div>`).join('');
 
   let notifs = [];
-  let sonido = store.get('sonido', true);
-  const actualizarSonido = () => { $('#btn-sonido').classList.toggle('off', !sonido); $('#btn-sonido').textContent = sonido ? '🔊' : '🔇'; };
-  actualizarSonido();
-  $('#btn-sonido').addEventListener('click', () => { sonido = !sonido; store.set('sonido', sonido); actualizarSonido(); if (sonido) beep(); });
-
-  function beep() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = 880; g.gain.setValueAtTime(.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .4);
-      o.start(); o.stop(ctx.currentTime + .4);
-    } catch { }
-  }
 
   function renderNotifs() {
     const sinLeer = notifs.filter(n => !n.leida).length;
@@ -298,7 +433,6 @@
     notifs.unshift(n);
     renderNotifs();
     toast(n);
-    if (sonido) beep();
     if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification(n.titulo, { body: n.mensaje });
     cargarRiegos().catch(() => {});
     cargarEstado();

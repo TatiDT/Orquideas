@@ -4,6 +4,7 @@ const path = require('path');
 const S = require('./src/store');
 const sensores = require('./src/sensores');
 const motor = require('./src/motor');
+const canales = require('./src/canales');
 
 const app = express();
 app.use(express.json());
@@ -56,6 +57,9 @@ const limpiar = b => ({
   volumen_litros: b.volumen_litros === '' || b.volumen_litros == null ? null : Number(b.volumen_litros),
   minutos_aviso: Number(b.minutos_aviso), fecha_inicio: b.fecha_inicio, fecha_fin: b.fecha_fin || null,
   activo: b.activo !== false,
+  lote: String(b.lote || '').trim().slice(0, 40), especie: String(b.especie || '').trim().slice(0, 100),
+  metodo: String(b.metodo || '').trim().slice(0, 60), nutricion: String(b.nutricion || '').trim().slice(0, 80),
+  nota: String(b.nota || '').trim().slice(0, 300),
 });
 
 function proximo(cal) {
@@ -122,6 +126,79 @@ app.post('/api/calendarios/:id/prueba', (req, res) => {
   res.status(201).json({ prog });
 });
 
+const nuevoRiego = (cal, prog, extra = {}) => {
+  const r = {
+    id: S.nextId('riego'), id_calendario: cal.id, nave: cal.nave, nombre: cal.nombre, prog,
+    duracion_min: cal.duracion_min, volumen_litros: cal.volumen_litros, minutos_aviso: cal.minutos_aviso,
+    estado: 'PENDIENTE', origen: 'MANUAL', avisado: false, hora_notificada: false, realizado_en: null, observacion: null,
+    ...extra,
+  };
+  S.db.riegos.push(r);
+  return r;
+};
+const stamp = d => `${S.fechaLocal(d)}T${S.pad(d.getHours())}:${S.pad(d.getMinutes())}`;
+
+app.post('/api/calendarios/:id/registrar', (req, res) => {
+  const cal = S.db.calendarios.find(c => c.id === +req.params.id);
+  if (!cal) return res.sendStatus(404);
+  const abiertos = S.db.riegos.filter(r => r.id_calendario === cal.id && ABIERTO.includes(r.estado));
+  const ahora = new Date();
+  if (abiertos.length) {
+    abiertos.forEach(r => { r.estado = 'REALIZADO'; r.realizado_en = ahora.toISOString(); });
+  } else {
+    nuevoRiego(cal, stamp(ahora), { estado: 'REALIZADO', realizado_en: ahora.toISOString(), avisado: true, hora_notificada: true });
+  }
+  S.guardar();
+  res.json({ ok: true });
+});
+
+app.post('/api/calendarios/:id/posponer', (req, res) => {
+  const cal = S.db.calendarios.find(c => c.id === +req.params.id);
+  if (!cal) return res.sendStatus(404);
+  const abiertos = S.db.riegos.filter(r => r.id_calendario === cal.id && ABIERTO.includes(r.estado));
+  const mas24 = prog => { const d = new Date(prog + ':00'); d.setDate(d.getDate() + 1); return stamp(d); };
+  if (abiertos.length) {
+    abiertos.forEach(r => {
+      r.prog_original = r.prog_original || r.prog;
+      r.prog = mas24(r.prog); r.estado = 'PENDIENTE'; r.avisado = false; r.hora_notificada = false;
+    });
+  } else {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    nuevoRiego(cal, stamp(d), { origen: 'POSPUESTO' });
+  }
+  S.guardar();
+  res.json({ ok: true });
+});
+
+app.post('/api/riegos/programar', (req, res) => {
+  const { id_calendario, fecha, hora } = req.body || {};
+  const cal = S.db.calendarios.find(c => c.id === +id_calendario);
+  const errores = [];
+  if (!cal) errores.push('Lote inválido');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) errores.push('Fecha inválida');
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hora || '')) errores.push('Hora inválida');
+  if (!errores.length && new Date(`${fecha}T${hora}:00`) <= new Date()) errores.push('La fecha y hora deben ser futuras');
+  if (errores.length) return res.status(400).json({ errores });
+  const prog = `${fecha}T${hora}`;
+  if (S.db.riegos.some(r => r.id_calendario === cal.id && r.prog === prog && ABIERTO.includes(r.estado))) {
+    return res.status(400).json({ errores: ['Ya hay un riego programado a esa hora'] });
+  }
+  const r = nuevoRiego(cal, prog, { origen: 'PROGRAMADO' });
+  S.notificar({
+    origen: 'RIEGO', severidad: 'INFO', nave: cal.nave, id_riego: r.id,
+    titulo: `Riego programado · Nave ${cal.nave}`,
+    mensaje: `${cal.nombre}: ${fecha.split('-').reverse().join('/')} a las ${hora} (${cal.duracion_min} min${cal.volumen_litros ? `, ${cal.volumen_litros} L` : ''}).`,
+  });
+  S.guardar();
+  motor.avisarRiegos(new Date());
+  res.status(201).json(r);
+});
+
+app.post('/api/canales/prueba', async (req, res) => {
+  await canales.enviar({ titulo: 'Prueba OrquiClima', mensaje: 'Si recibes este mensaje, el canal está bien configurado.' });
+  res.json(canales.estado());
+});
+
 app.get('/api/riegos', (req, res) => {
   res.json([...S.db.riegos].sort((a, b) => b.prog.localeCompare(a.prog)).slice(0, 60));
 });
@@ -137,6 +214,28 @@ const cerrar = estado => (req, res) => {
 };
 app.post('/api/riegos/:id/realizar', cerrar('REALIZADO'));
 app.post('/api/riegos/:id/omitir', cerrar('OMITIDO'));
+
+app.post('/api/riegos/:id/posponer', (req, res) => {
+  const r = S.db.riegos.find(x => x.id === +req.params.id);
+  if (!r) return res.sendStatus(404);
+  const d = new Date(r.prog + ':00');
+  d.setDate(d.getDate() + 1);
+  r.prog_original = r.prog_original || r.prog;
+  r.prog = `${S.fechaLocal(d)}T${S.pad(d.getHours())}:${S.pad(d.getMinutes())}`;
+  r.estado = 'PENDIENTE';
+  r.avisado = false;
+  r.hora_notificada = false;
+  S.guardar();
+  res.json(r);
+});
+
+app.delete('/api/riegos/:id', (req, res) => {
+  const i = S.db.riegos.findIndex(x => x.id === +req.params.id);
+  if (i < 0) return res.sendStatus(404);
+  S.db.riegos.splice(i, 1);
+  S.guardar();
+  res.sendStatus(204);
+});
 
 app.get('/api/notificaciones', (req, res) => res.json([...S.db.notificaciones].reverse().slice(0, 50)));
 
@@ -178,6 +277,7 @@ app.get('/api/historial', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+canales.iniciar();
 app.listen(PORT, () => {
   console.log(`OrquiClima en http://localhost:${PORT}  ·  sensores: ${sensores.SENSOR_URL || 'sin sensores (datos en 0)'}`);
   motor.iniciar();

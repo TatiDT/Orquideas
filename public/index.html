@@ -1,152 +1,247 @@
 <!doctype html>
 <html lang="es">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OrquiClima PRO</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OrquiClima PRO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-<header class="topbar">
-  <div class="brand">
-    <div class="logo">✿</div>
-    <div>
-      <div class="brand-name">OrquiClima <span class="pro">PRO</span></div>
-      <div class="brand-sub">Monitoreo y Riego de Orquídeas</div>
-    </div>
-  </div>
-  <nav class="tabs" id="tabs">
-    <button data-view="vivo" class="active">Monitoreo en Vivo</button>
-    <button data-view="calendario">Calendario de Riego <span class="badge" id="badge-riegos" hidden>0</span></button>
-    <button data-view="historial">Historial Ambiental</button>
-    <button data-view="guia">Guía de Especies</button>
-  </nav>
-  <div class="actions">
-    <button class="icon-btn" id="btn-sonido" title="Sonido de alertas" aria-label="Sonido de alertas">🔊</button>
-    <button class="icon-btn" id="btn-campana" title="Notificaciones" aria-label="Notificaciones">🔔<span class="dot" id="dot-notif" hidden></span></button>
-  </div>
-</header>
-
-<aside class="panel-notif" id="panel-notif" hidden>
-  <div class="panel-head">
-    <strong>Notificaciones</strong>
-    <button class="link" id="btn-leer-todas">Marcar todas leídas</button>
-  </div>
-  <div id="lista-notif"></div>
-</aside>
-
-<main>
-  <section id="view-vivo" class="view active">
-    <div class="hero">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">✿</div>
       <div>
-        <div class="chip"><i class="pulse"></i> Monitoreo Activo de Microclima · <b>80% HR · 18°C – 24°C</b></div>
-        <h1>Control Microclimático de Invernadero ✿</h1>
-        <p>Supervisión perimetral continua mediante sondas ambientales Bluetooth y Wi-Fi para mantener el microclima óptimo: humedad del aire al 80% y gradiente térmico de 18°C a 24°C (noche – día).</p>
-      </div>
-      <div class="hero-metrics">
-        <div><small>Humedad de Nave</small><div class="big mono" id="hero-hr">--</div><small>Meta: ~80% HR</small></div>
-        <div><small>Temperatura</small><div class="big mono" id="hero-t">--</div><small>Meta: 18 – 24°C</small></div>
+        <div class="brand-name">OrquiClima <span class="pro">PRO</span></div>
+        <div class="brand-sub">Monitoreo y Riego de Orquídeas</div>
       </div>
     </div>
+    <nav class="tabs" id="tabs">
+      <button data-view="vivo" class="active">Monitoreo en Vivo</button>
+      <button data-view="calendario">Calendario de Riego <span class="badge" id="badge-riegos" hidden>0</span></button>
+      <button data-view="historial">Historial Ambiental</button>
+      <button data-view="guia">Guía de Especies</button>
+    </nav>
+  </header>
 
-    <div id="aviso-fuente" class="aviso" hidden></div>
-    <div id="alertas-activas"></div>
+  <button class="fab" id="btn-campana" title="Notificaciones" aria-label="Notificaciones">🔔<span class="dot"
+      id="dot-notif" hidden></span></button>
 
-    <div class="card">
-      <div class="card-head">
+  <aside class="panel-notif" id="panel-notif" hidden>
+    <div class="panel-head">
+      <strong>Notificaciones</strong>
+      <button class="link" id="btn-leer-todas">Marcar todas leídas</button>
+    </div>
+    <div id="lista-notif"></div>
+  </aside>
+
+  <main>
+    <section id="view-vivo" class="view active">
+      <div class="hero">
         <div>
-          <h2>✿ Distribución Espacial del Invernadero y Estado Microclimático</h2>
-          <p class="muted">Haz clic en cualquier sector para ver sus lecturas</p>
+          <div class="chip"><i class="pulse"></i> Monitoreo Activo de Microclima · <b>80% HR · 18°C – 24°C</b></div>
+          <h1>Control Microclimático de Invernadero ✿</h1>
+          <p>Supervisión perimetral continua mediante sondas ambientales Bluetooth y Wi-Fi para mantener el microclima
+            óptimo: humedad del aire al 80% y gradiente térmico de 18°C a 24°C (noche – día).</p>
         </div>
-        <div class="legend"><span><i class="lg pink"></i>Meta HR 80%</span><span><i class="lg violet"></i>Rango 18°C–24°C</span></div>
+        <div class="hero-metrics">
+          <div><small>Humedad de Nave</small>
+            <div class="big mono" id="hero-hr">--</div><small>Meta: ~80% HR</small>
+          </div>
+          <div><small>Temperatura</small>
+            <div class="big mono" id="hero-t">--</div><small>Meta: 18 – 24°C</small>
+          </div>
+        </div>
       </div>
-      <div class="naves" id="naves"></div>
-    </div>
 
-    <div class="gauges" id="gauges"></div>
-    <p class="muted foot" id="foot-fuente"></p>
-  </section>
+      <div id="aviso-fuente" class="aviso" hidden></div>
 
-  <section id="view-calendario" class="view">
-    <div class="page-head">
-      <div><h2>Calendario de Riego</h2><p class="muted">Programa los riegos por nave. Recibirás un aviso antes de la hora y otro a la hora exacta; también se avisa si la humedad baja del rango.</p></div>
-      <button class="btn primary" id="btn-nuevo">+ Nuevo calendario</button>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>Riegos de hoy y recientes</h2></div>
-      <div id="riegos"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>Calendarios programados</h2></div>
-      <div id="calendarios" class="cal-grid"></div>
-    </div>
-  </section>
-
-  <section id="view-historial" class="view">
-    <div class="page-head">
-      <div><h2>Historial Ambiental</h2><p class="muted">Registro de las condiciones ambientales con la frecuencia que elijas.</p></div>
-      <div class="filtros">
-        <label>Frecuencia de registro
-          <select id="sel-frec">
-            <option value="5">Cada 5 min</option><option value="10">Cada 10 min</option><option value="15">Cada 15 min</option>
-            <option value="30">Cada 30 min</option><option value="60">Cada 1 hora</option><option value="120">Cada 2 horas</option>
-            <option value="180">Cada 3 horas</option><option value="360">Cada 6 horas</option><option value="720">Cada 12 horas</option><option value="1440">Cada 24 horas</option>
-          </select>
-        </label>
-        <label>Nave
-          <select id="sel-nave-h"><option value="">Todas</option><option>A</option><option>B</option><option>C</option></select>
-        </label>
-        <label>Período
-          <select id="sel-horas"><option value="6">6 h</option><option value="24" selected>24 h</option><option value="168">7 días</option><option value="720">30 días</option></select>
-        </label>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>✿ Distribución Espacial del Invernadero y Estado Microclimático</h2>
+            <p class="muted">Haz clic en cualquier sector para ver sus lecturas</p>
+          </div>
+          <div class="legend"><span><i class="lg pink"></i>Meta HR 80%</span><span><i class="lg violet"></i>Rango
+              18°C–24°C</span></div>
+        </div>
+        <div class="naves" id="naves"></div>
       </div>
-    </div>
-    <div class="card">
-      <div class="tabla-wrap">
-        <table>
-          <thead><tr><th>Fecha y hora</th><th>Nave</th><th>Humedad</th><th>Temperatura</th><th>DPV</th><th>Pto. rocío</th><th>Estado</th></tr></thead>
-          <tbody id="tbody-hist"></tbody>
-        </table>
+
+      <div class="gauges" id="gauges"></div>
+      <p class="muted foot" id="foot-fuente"></p>
+    </section>
+
+    <section id="view-calendario" class="view">
+      <div class="page-head">
+        <div>
+          <h2>Calendario de Riego</h2>
+          <p class="muted">Programa los riegos por nave. Recibirás un aviso antes de la hora y otro a la hora exacta;
+            también se avisa si la humedad baja del rango.</p>
+        </div>
+        <button class="btn primary" id="btn-nuevo">+ Nuevo calendario</button>
       </div>
-    </div>
-  </section>
 
-  <section id="view-guia" class="view">
-    <div class="page-head"><div><h2>Guía de Especies</h2><p class="muted">Todas las especies del invernadero comparten el mismo microclima objetivo: 80% HR y 18°C – 24°C.</p></div></div>
-    <div class="cal-grid" id="guia"></div>
-  </section>
-</main>
+      <div id="aviso-riego" class="aviso-riego" hidden></div>
 
-<div class="modal" id="modal" hidden>
-  <form class="modal-box" id="form-cal" novalidate>
-    <h3 id="modal-titulo">Nuevo calendario</h3>
-    <div class="form-grid">
-      <label class="full">Nombre<input name="nombre" required maxlength="100" placeholder="Riego Phalaenopsis"></label>
-      <label>Nave<select name="nave"><option value="A">Nave A</option><option value="B">Nave B</option><option value="C">Nave C</option></select></label>
-      <label>Hora de riego<input type="time" name="hora" required value="08:00"></label>
-      <fieldset class="full"><legend>Días de la semana</legend>
-        <div class="dias" id="dias"></div>
-      </fieldset>
-      <label>Duración (min)<input type="number" name="duracion_min" min="1" max="240" value="10"></label>
-      <label>Volumen (L) <small>opcional</small><input type="number" name="volumen_litros" min="0" step="0.5"></label>
-      <label>Avisar con (min) de antelación<input type="number" name="minutos_aviso" min="0" max="720" value="15"></label>
-      <label>Desde<input type="date" name="fecha_inicio" required></label>
-      <label>Hasta <small>opcional</small><input type="date" name="fecha_fin"></label>
-    </div>
-    <div class="errores" id="form-errores" hidden></div>
-    <div class="modal-actions">
-      <button type="button" class="btn" id="btn-cancelar">Cancelar</button>
-      <button type="submit" class="btn primary">Guardar</button>
-    </div>
-  </form>
-</div>
+      <div class="card" id="programar">
+        <div class="card-head">
+          <h2>Programar riego</h2>
+          <span class="muted">Elige el día y la hora; se genera una notificación del riego programado.</span>
+        </div>
+        <div class="prog-grid">
+          <div class="mes">
+            <div class="mes-head">
+              <button class="btn sm" id="mes-prev" aria-label="Mes anterior">‹</button>
+              <strong id="mes-titulo"></strong>
+              <button class="btn sm" id="mes-next" aria-label="Mes siguiente">›</button>
+            </div>
+            <div class="mes-dias" id="mes-dias"></div>
+            <div class="mes-leyenda"><span><i class="pt prog"></i> Programado</span><span><i class="pt rec"></i> Recurrente</span></div>
+          </div>
+          <div class="prog-panel">
+            <h3 id="prog-fecha">Selecciona un día</h3>
+            <label>Lote<select id="prog-lote"></select></label>
+            <label>Hora<input type="time" id="prog-hora" value="08:00"></label>
+            <div class="errores" id="prog-error" hidden></div>
+            <button class="btn primary" id="prog-btn">Programar riego</button>
+            <div id="prog-lista"></div>
+          </div>
+        </div>
+      </div>
 
-<div class="toasts" id="toasts" aria-live="polite"></div>
-<script src="app.js"></script>
+      <div id="calendarios" class="lote-grid"></div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Riegos de hoy y recientes</h2>
+        </div>
+        <div id="riegos"></div>
+      </div>
+    </section>
+
+    <section id="view-historial" class="view">
+      <div class="page-head">
+        <div>
+          <h2>Historial Ambiental</h2>
+          <p class="muted">Registro de las condiciones ambientales con la frecuencia que elijas.</p>
+        </div>
+        <div class="filtros">
+          <label>Frecuencia de registro
+            <select id="sel-frec">
+              <option value="5">Cada 5 min</option>
+              <option value="10">Cada 10 min</option>
+              <option value="15">Cada 15 min</option>
+              <option value="30">Cada 30 min</option>
+              <option value="60">Cada 1 hora</option>
+              <option value="120">Cada 2 horas</option>
+              <option value="180">Cada 3 horas</option>
+              <option value="360">Cada 6 horas</option>
+              <option value="720">Cada 12 horas</option>
+              <option value="1440">Cada 24 horas</option>
+            </select>
+          </label>
+          <label>Nave
+            <select id="sel-nave-h">
+              <option value="">Todas</option>
+              <option>A</option>
+              <option>B</option>
+              <option>C</option>
+            </select>
+          </label>
+          <label>Período
+            <select id="sel-horas">
+              <option value="6">6 h</option>
+              <option value="24" selected>24 h</option>
+              <option value="168">7 días</option>
+              <option value="720">30 días</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha y hora</th>
+                <th>Nave</th>
+                <th>Humedad</th>
+                <th>Temperatura</th>
+                <th>DPV</th>
+                <th>Pto. rocío</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-hist"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-guia" class="view">
+      <div class="page-head">
+        <div>
+          <h2>Guía de Especies</h2>
+          <p class="muted">Todas las especies del invernadero comparten el mismo microclima objetivo: 80% HR y 18°C –
+            24°C.</p>
+        </div>
+      </div>
+      <div class="cal-grid" id="guia"></div>
+    </section>
+  </main>
+
+  <div class="modal" id="modal" hidden>
+    <form class="modal-box" id="form-cal" novalidate>
+      <h3 id="modal-titulo">Nuevo calendario</h3>
+      <div class="form-grid">
+        <label class="full">Nombre<input name="nombre" required maxlength="100"
+            placeholder="Riego Phalaenopsis"></label>
+        <label>Código de lote <small>opcional</small><input name="lote" maxlength="40" placeholder="LOTE-PHA-2026-A"></label>
+        <label>Especie<input name="especie" maxlength="100" placeholder="Phalaenopsis (Orquídea Mariposa)"></label>
+        <label>Método de riego<select name="metodo">
+            <option value="">—</option>
+            <option>Inmersión</option>
+            <option>Riego sustrato</option>
+            <option>Nebulización foliar</option>
+            <option>Aspersión</option>
+          </select></label>
+        <label>Nutrición / Abono<input name="nutricion" maxlength="80" placeholder="Solo agua desmineralizada"></label>
+        <label class="full">Nota de cultivo <small>opcional</small><input name="nota" maxlength="300"
+            placeholder="Verificar color de raíces antes de regar"></label>
+        <label>Nave<select name="nave">
+            <option value="A">Nave A</option>
+            <option value="B">Nave B</option>
+            <option value="C">Nave C</option>
+          </select></label>
+        <label>Hora de riego<input type="time" name="hora" required value="08:00"></label>
+        <fieldset class="full">
+          <legend>Días de la semana</legend>
+          <div class="dias" id="dias"></div>
+        </fieldset>
+        <label>Duración (min)<input type="number" name="duracion_min" min="1" max="240" value="10"></label>
+        <label>Volumen (L) <small>opcional</small><input type="number" name="volumen_litros" min="0" step="0.5"></label>
+        <label>Avisar con (min) de antelación<input type="number" name="minutos_aviso" min="0" max="720"
+            value="15"></label>
+        <label>Desde<input type="date" name="fecha_inicio" required></label>
+        <label>Hasta <small>opcional</small><input type="date" name="fecha_fin"></label>
+      </div>
+      <div class="errores" id="form-errores" hidden></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="btn-cancelar">Cancelar</button>
+        <button type="submit" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="app.js"></script>
 </body>
+
 </html>

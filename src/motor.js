@@ -16,7 +16,7 @@ function generarRiegosDeHoy(ahora) {
   for (const cal of S.db.calendarios) {
     if (!aplicaEn(cal, fecha, dia)) continue;
     const prog = progDe(fecha, cal.hora);
-    if (S.db.riegos.some(r => r.id_calendario === cal.id && r.prog === prog)) continue;
+    if (S.db.riegos.some(r => r.id_calendario === cal.id && (r.prog === prog || r.prog_original === prog))) continue;
     if (ahora - aDate(prog) > 2 * 60 * 1000) continue;
     S.db.riegos.push({
       id: S.nextId('riego'), id_calendario: cal.id, nave: cal.nave, nombre: cal.nombre, prog,
