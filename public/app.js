@@ -408,8 +408,11 @@
     if (!p.hidden && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   });
   $('#btn-leer-todas').addEventListener('click', async () => {
-    await api('/api/notificaciones/leer-todas', 'POST');
     notifs.forEach(n => { n.leida = true; }); renderNotifs();
+    try {
+      await api('/api/notificaciones/leer-todas', 'POST');
+      notifs = await api('/api/notificaciones'); renderNotifs();
+    } catch (err) { toast({ titulo: 'No se pudo marcar como leídas', mensaje: err.message, severidad: 'CRITICA' }); }
   });
   $('#lista-notif').addEventListener('click', async e => {
     const el = e.target.closest('[data-id]');
